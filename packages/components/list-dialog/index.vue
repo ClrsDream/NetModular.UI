@@ -1,5 +1,22 @@
 <template>
-  <nm-dialog class="nm-list-dialog" v-bind="dialog" v-on="on" :visible.sync="visible_">
+  <nm-dialog
+    class="nm-list-dialog"
+    no-scrollbar
+    :title="title"
+    :icon="icon"
+    :width="width"
+    :height="height"
+    :fullscreen="fullscreen"
+    :close-on-click-modal="closeOnClickModal"
+    :draggable="draggable"
+    :drag-out-page="dragOutPage"
+    :drag-min-width="dragMinWidth"
+    :visible.sync="visible_"
+    v-on="on"
+  >
+    <template v-slot:title>
+      <slot name="title" />
+    </template>
     <template v-slot:toolbar>
       <!--刷新按钮-->
       <nm-button icon="refresh" @click="refresh" />
@@ -8,10 +25,10 @@
   </nm-dialog>
 </template>
 <script>
-import dialog from '../../mixins/components/dialog.js'
+import visible from '../../mixins/components/visible.js'
 export default {
   name: 'ListDialog',
-  mixins: [dialog],
+  mixins: [visible],
   data() {
     return {
       on: {
@@ -53,21 +70,12 @@ export default {
     /** 是否可拖拽 */
     draggable: {
       type: Boolean,
-      default: false
-    }
-  },
-  computed: {
-    dialog() {
-      return {
-        noScrollbar: true,
-        title: this.title,
-        icon: this.icon,
-        width: this.width,
-        height: this.height,
-        fullscreen: this.fullscreen,
-        closeOnClickModal: this.closeOnClickModal
-      }
-    }
+      default: null
+    },
+    /** 是否可拖出页面 */
+    dragOutPage: Boolean,
+    /** 拖拽出页面后保留的最小宽度 */
+    dragMinWidth: Number
   },
   methods: {
     refresh() {

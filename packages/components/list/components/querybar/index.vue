@@ -1,12 +1,12 @@
 <template>
   <!--工具栏-->
   <section class="nm-list-querybar">
-    <nm-form ref="normalForm" class="nm-list-querybar-normal" :model="model_" :rules="rules" :inline="true">
+    <nm-form ref="normalForm" class="nm-list-querybar-normal" :model="model_" :rules="rules" :size="fontSize" :inline="true">
       <slot />
       <el-form-item v-if="!noSearch">
-        <nm-button type="success" @click="query" :icon="!noSearchButtonIcon ? 'search' : ''" text="查询" />
+        <nm-button type="primary" @click="query" :icon="!noSearchButtonIcon ? 'search' : ''" text="查询" />
       </el-form-item>
-      <el-form-item v-if="!noSearch">
+      <el-form-item v-if="!noReset">
         <nm-button type="info" @click="reset" :icon="!noSearchButtonIcon ? 'refresh' : ''" text="重置" />
       </el-form-item>
       <el-form-item v-if="exportEnabled" v-nm-has="exportBtnCode">
@@ -83,6 +83,8 @@ export default {
     noSearchButtonIcon: Boolean,
     /** 不需要查询 */
     noSearch: Boolean,
+    /**不显示查询按钮 */
+    noReset: Boolean,
     /**显示导出按钮 */
     exportEnabled: Boolean,
     /**导出按钮权限编码 */
@@ -119,7 +121,10 @@ export default {
       if (this.$refs.advancedForm) {
         this.$refs.advancedForm.reset()
       }
-      this.$parent.reset(true)
+      this.$emit('reset')
+    },
+    validate(action) {
+      return this.$refs.normalForm.validate(action)
     },
     /** 高级查询按钮点击事件 */
     onAdvancedClick() {

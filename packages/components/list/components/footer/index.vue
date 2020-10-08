@@ -9,7 +9,7 @@
         :current-page="value.index"
         :page-size="value.size"
         :total="total"
-        :page-sizes="[10, 15, 50, 100]"
+        :page-sizes="pageSizes"
         layout="total, sizes, prev, pager, next, jumper"
         @size-change="onSizeChange"
         @current-change="onIndexChange"
@@ -35,10 +35,18 @@ export default {
     /** 不显示选择列按钮 */
     noSelectColumn: Boolean,
     /** 左右反转 */
-    reverse: Boolean
+    reverse: Boolean,
+    /** 页数选择项 */
+    pageSizes: {
+      type: Array,
+      default() {
+        return [10, 15, 50, 100]
+      }
+    }
   },
   methods: {
     onSizeChange(size) {
+      console.log(size)
       const page = Object.assign({}, this.value, { size, index: 1 })
       this.$emit('input', page)
       this.$parent.query()
@@ -50,10 +58,9 @@ export default {
       this.$parent.query()
       this.$parent.$emit('index-change', index)
     },
-    onSelectColumnChange(columns) {
+    onSelectColumnChange() {
       // 重绘父组件的布局
       this.$parent.doLayout()
-      this.$emit('update:columns', columns)
     }
   }
 }

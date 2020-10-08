@@ -13,7 +13,7 @@
     @success="success"
   >
     <el-alert title="提示" type="warning" description="密码修改成功后，需要重新登录" show-icon :closable="false"></el-alert>
-    <el-row :gutter="20">
+    <el-row>
       <el-col :span="18" :offset="2">
         <el-form-item label="原密码：" prop="oldPassword">
           <el-input type="password" v-model="model.oldPassword"></el-input>
@@ -29,12 +29,12 @@
   </nm-form-dialog>
 </template>
 <script>
-import dialog from '../../mixins/components/dialog.js'
+import visible from '../../mixins/components/visible.js'
 import { mapState, mapActions } from 'vuex'
 
 export default {
   name: 'UpdatePassword',
-  mixins: [dialog],
+  mixins: [visible],
   data() {
     // 密码验证
     const validator = (rule, value, callback) => {

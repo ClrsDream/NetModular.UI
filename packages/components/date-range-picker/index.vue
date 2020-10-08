@@ -1,6 +1,17 @@
 <template>
-  <div :style="{ display: 'inline-block', width }">
-    <el-date-picker v-model="value" v-bind="options" @change="onChange" />
+  <div class="nm-date-range-picker" :style="{ display: 'inline-block', width }">
+    <el-date-picker
+      v-model="value"
+      :size="this.size || this.fontSize"
+      type="daterange"
+      range-separator="至"
+      start-placeholder="开始日期"
+      end-placeholder="结束日期"
+      value-format="yyyy-MM-dd"
+      :clearable="clearable"
+      :picker-options="pickerOptions_"
+      @change="onChange"
+    />
   </div>
 </template>
 <script>
@@ -23,19 +34,47 @@ export default {
     width: {
       type: String,
       default: '240px'
-    }
+    },
+    /**当前时间日期选择器特有的选项 */
+    pickerOptions: Object,
+    /**是否显示日期快捷键 */
+    showPickerOptions: Boolean
   },
   computed: {
-    options() {
-      return {
-        size: this.size || this.fontSize,
-        type: 'daterange',
-        rangeSeparator: '至',
-        startPlaceholder: '开始日期',
-        endPlaceholder: '结束日期',
-        valueFormat: 'yyyy-MM-dd',
-        clearable: this.clearable
-      }
+    pickerOptions_() {
+      return this.showPickerOptions
+        ? {
+            shortcuts: [
+              {
+                text: '最近一周',
+                onClick(picker) {
+                  const end = new Date()
+                  const start = new Date()
+                  start.setTime(start.getTime() - 3600 * 1000 * 24 * 7)
+                  picker.$emit('pick', [start, end])
+                }
+              },
+              {
+                text: '最近一个月',
+                onClick(picker) {
+                  const end = new Date()
+                  const start = new Date()
+                  start.setTime(start.getTime() - 3600 * 1000 * 24 * 30)
+                  picker.$emit('pick', [start, end])
+                }
+              },
+              {
+                text: '最近三个月',
+                onClick(picker) {
+                  const end = new Date()
+                  const start = new Date()
+                  start.setTime(start.getTime() - 3600 * 1000 * 24 * 90)
+                  picker.$emit('pick', [start, end])
+                }
+              }
+            ]
+          }
+        : null
     }
   },
   methods: {
@@ -51,8 +90,9 @@ export default {
     }
   },
   created() {
-    var end = new Date()
-    const start = new Date(end.getFullYear(), end.getMonth(), 1)
+    var mow = new Date()
+    const start = this.$dayjs(mow).format('YYYY-MM-01')
+    const end = this.$dayjs(mow).format('YYYY-MM-DD')
 
     let val = []
     val.push(this.start || start)
@@ -63,6 +103,7 @@ export default {
     if (!this.end) {
       this.$emit('update:end', val[1])
     }
+    this.value = val
   },
   watch: {
     start(val) {

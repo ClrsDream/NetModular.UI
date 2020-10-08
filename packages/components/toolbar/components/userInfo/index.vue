@@ -20,7 +20,7 @@
   </div>
 </template>
 <script>
-import { mapState } from 'vuex'
+import { mapState, mapGetters } from 'vuex'
 import NmUpdatePassword from '../../../update-password'
 export default {
   components: { NmUpdatePassword },
@@ -33,13 +33,11 @@ export default {
   },
   computed: {
     ...mapState('app/account', { userName: 'name' }),
-    ...mapState('app/system', { userInfoPage: s => s.config.base.userInfoPage })
+    ...mapGetters('app/config', ['userPage'])
   },
   methods: {
     openUserInfo() {
-      let routeName = this.userInfoPage || 'userinfo'
-      console.log(routeName)
-      this.$router.push({ name: routeName, query: { tn_: '账户信息' } })
+      this.$router.push({ name: this.userPage, query: { tn_: '账户信息' } })
     }
   }
 }

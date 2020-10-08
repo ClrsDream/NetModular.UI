@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1.0" />
     <link rel="icon" href="./images/favicon.ico" />
     <title>正在加载资源...</title>
-    <link rel="stylesheet" href="./css/index.css" />
+    <link rel="stylesheet" href="./css/index.css?v=2020004172145" />
   </head>
 
   <body>
@@ -32,23 +32,22 @@
       </div>
     </div>
 
-    <script src="./lib/font/iconfont.js?v=201912101553"></script>
-    <script src="./lib/particles.js-2.0.0/particles.min.js"></script>
+    <script src="./lib/font/iconfont.js?v=2020004171501"></script>
+    <!--自定义第三方依赖脚本-->
+    <%= VUE_APP_CUSTOM_SCRIPTS %>
     <script>
-      //粒子效果
-      particlesJS.load('particles-foreground', 'lib/particles.js-2.0.0/particles.json')
       //加载进度
       window.loadProgress = 10
       window.loaded = false
       var propressEl = document.getElementById('nm-progress')
       var progressTimer = setInterval(function() {
         if (!window.loaded && window.loadProgress > 96) return
-        window.loadProgress += 2
+        window.loadProgress += 3
         propressEl.innerText = window.loadProgress + '%'
         if (window.loadProgress > 98) {
           clearInterval(progressTimer)
         }
-      }, 10)
+      }, 30)
     </script>
     <!-- built files will be auto injected -->
   </body>

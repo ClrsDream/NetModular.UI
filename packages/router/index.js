@@ -3,7 +3,6 @@ import Vue from 'vue'
 import VueRouter from 'vue-router'
 import SkinsRoutes from './routes'
 import NProgress from 'nprogress'
-import token from '../utils/token'
 
 // 路由实例
 let router
@@ -19,21 +18,30 @@ Vue.use(VueRouter)
 NProgress.configure({ minimum: 0.2 })
 
 /** 初始化路由 */
-export default (store, system) => {
+export default (store, config) => {
   router = new VueRouter({ routes })
 
   // 路由过滤器
   router.beforeEach((to, from, next) => {
     // 开始进度条
     NProgress.start()
+
+    //如果是框架外的页面，或者不需要权限验证，不走验证逻辑
+    if (to.meta && (to.meta.frameIn === false || to.meta.noPermission)) {
+      next()
+      // 关闭进度条
+      NProgress.done()
+      return
+    }
+
     // 默认页
-    const homeRoute = system.config.base.home
-    // 如果访问的时 / 或者 /default，则跳转到首页
-    if (homeRoute && (to.path === '/' || to.path === '/default')) {
-      if (homeRoute.startsWith('http://') || homeRoute.startsWith('https://')) {
-        next({ name: 'iframe', params: { url: homeRoute, tn_: '首页' } })
+    const homeUrl = config.component.tabnav.homeUrl
+    // 如果访问的是 / 或者 /default，则跳转到首页
+    if (homeUrl && (to.path === '/' || to.path === '/default')) {
+      if (homeUrl.startsWith('http://') || homeUrl.startsWith('https://')) {
+        next({ name: 'iframe', params: { url: homeUrl, tn_: '首页' } })
       } else {
-        next(homeRoute)
+        next(homeUrl)
       }
 
       // 关闭进度条
@@ -42,8 +50,8 @@ export default (store, system) => {
     }
 
     // 验证是否已登录，根据本地是否存在token判断
-    const _token = token.get()
-    if (!_token && to.name !== 'login') {
+    const token = store.state.app.token.accessToken
+    if (!token && to.name !== 'login') {
       next({ name: 'login', query: { redirect: to.fullPath } })
     } else {
       if (to.name === 'login') {
@@ -63,9 +71,11 @@ export default (store, system) => {
               // 关闭进度条
               NProgress.done()
             } else if (
-              !store.state.app.system.config.permission.validate ||
+              !store.state.app.config.permission.validate ||
               store.getters['app/account/routes'].includes(to.name) ||
-              to.path === homeRoute ||
+              to.path === homeUrl ||
+              to.path === '/' ||
+              to.path === '/default' ||
               to.name === 'iframe' ||
               to.name === 'userinfo'
             ) {
@@ -78,6 +88,9 @@ export default (store, system) => {
               })
             } else {
               next({ name: 'error403' })
+
+              // 关闭进度条
+              NProgress.done()
             }
           })
       }

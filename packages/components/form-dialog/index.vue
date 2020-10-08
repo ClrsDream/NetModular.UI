@@ -1,6 +1,38 @@
 <template>
-  <nm-dialog ref="dialog" class="nm-form-dialog" v-bind="dialog" v-on="dialogOn" :visible.sync="visible_">
-    <nm-form ref="form" v-bind="form" v-on="formOn">
+  <nm-dialog
+    ref="dialog"
+    class="nm-form-dialog"
+    :title="title"
+    :icon="icon"
+    :width="width"
+    :height="height"
+    :footer="footer"
+    :fullscreen="fullscreen"
+    :close-on-click-modal="closeOnClickModal"
+    :loading="showLoading"
+    :footer-close-button="footerCloseButton"
+    :draggable="draggable"
+    :drag-out-page="dragOutPage"
+    :drag-min-width="dragMinWidth"
+    :visible.sync="visible_"
+    v-on="dialogOn"
+  >
+    <nm-form
+      ref="form"
+      no-loading
+      :model="model"
+      :rules="rules"
+      :action="action"
+      :label-width="labelWidth"
+      :label-position="labelPosition"
+      :customValidate="validate"
+      :success-msg="successMsg"
+      :success-msg-text="successMsgText"
+      :disabled="disabled"
+      :inline="inline"
+      :customResetFunction="customResetFunction"
+      v-on="formOn"
+    >
       <slot />
     </nm-form>
 
@@ -11,23 +43,24 @@
     <template v-slot:footer>
       <slot name="footer-buttons" />
       <slot name="footer">
-        <el-button v-if="btnOk" :type="btnOkType" @click="submit" :size="fontSize">{{ btnOkText }}</el-button>
-        <el-button v-if="btnReset" type="info" @click="reset" :size="fontSize">重置</el-button>
+        <el-button v-if="btnOk && !disabled" type="success" @click="submit" :size="fontSize">{{ btnOkText }}</el-button>
+        <el-button v-if="btnReset && !disabled" type="warning" @click="reset" :size="fontSize">重置</el-button>
       </slot>
     </template>
   </nm-dialog>
 </template>
 <script>
-import dialog from '../../mixins/components/dialog.js'
+import visible from '../../mixins/components/visible'
 export default {
   name: 'FormDialog',
-  mixins: [dialog],
+  mixins: [visible],
   data() {
     return {
       loading_: false,
       formOn: {
         success: this.onSuccess,
         error: this.onError,
+        reset: this.onReset,
         'validate-error': this.onValidateError
       },
       dialogOn: {
@@ -67,10 +100,7 @@ export default {
     /** 验证规则 */
     rules: Object,
     /** 提交请求 */
-    action: {
-      type: Function,
-      required: true
-    },
+    action: Function,
     /** 行内表单 */
     inline: {
       type: Boolean,
@@ -102,11 +132,6 @@ export default {
       type: String,
       default: '保存'
     },
-    /** Ok按钮类型 */
-    btnOkType: {
-      type: String,
-      default: 'primary'
-    },
     /** reset按钮 */
     btnReset: {
       type: Boolean,
@@ -134,38 +159,18 @@ export default {
       default: true
     },
     /** 是否显示底部关闭按钮 */
-    footerCloseButton: Boolean
+    footerCloseButton: Boolean,
+    /** 可拖拽的 */
+    draggable: {
+      type: Boolean,
+      default: null
+    },
+    /** 是否可拖出页面 */
+    dragOutPage: Boolean,
+    /** 拖拽出页面后保留的最小宽度 */
+    dragMinWidth: Number
   },
   computed: {
-    dialog() {
-      return {
-        title: this.title,
-        icon: this.icon,
-        width: this.width,
-        height: this.height,
-        footer: this.footer,
-        fullscreen: this.fullscreen,
-        closeOnClickModal: this.closeOnClickModal,
-        loading: this.showLoading,
-        footerCloseButton: this.footerCloseButton
-      }
-    },
-    form() {
-      return {
-        noLoading: true,
-        model: this.model,
-        rules: this.rules,
-        action: this.action,
-        labelWidth: this.labelWidth,
-        labelPosition: this.labelPosition,
-        validate: this.validate,
-        successMsg: this.successMsg,
-        successMsgText: this.successMsgText,
-        disabled: this.disabled,
-        inline: this.inline,
-        customResetFunction: this.customResetFunction
-      }
-    },
     showLoading() {
       return !this.noLoading && (this.loading_ || this.loading)
     }
@@ -178,8 +183,9 @@ export default {
     },
     /** 重置 */
     reset() {
-      this.$refs.form.reset()
-      this.$emit('reset')
+      this.$nextTick(() => {
+        this.$refs.form.reset()
+      })
     },
     /** 清除验证信息 */
     clearValidate() {
@@ -201,6 +207,9 @@ export default {
       }
       this.loading_ = false
       this.$emit('success', data)
+    },
+    onReset() {
+      this.$emit('reset')
     },
     onError() {
       this.loading_ = false

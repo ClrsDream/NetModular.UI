@@ -3,19 +3,20 @@
     ref="dialog"
     :id="id"
     :class="class_"
-    :top="draggable ? '' : top"
-    :modal="modal_"
+    :top="draggable_ ? '' : top"
+    :modal="modal"
     :close-on-click-modal="closeOnClickModal_"
     :fullscreen="hasFullscreen"
     :visible.sync="visible_"
     :show-close="false"
     :append-to-body="true"
+    :destroy-on-close="destroyOnClose"
     v-on="on"
   >
     <!--头部-->
     <template v-slot:title>
       <section v-if="icon" class="nm-dialog-icon">
-        <nm-icon :name="icon" />
+        <nm-icon :name="icon" :style="{ color: iconColor || '' }" />
       </section>
       <section ref="title" class="nm-dialog-title">
         <slot name="title">{{ title }}</slot>
@@ -47,7 +48,7 @@
         <div class="nm-form-footer-right">
           <slot name="footer" />
           <!--底部关闭按钮-->
-          <nm-button v-if="footerCloseButton" text="关闭" @click="close" />
+          <nm-button type="info" v-if="footerCloseButton" text="关闭" @click="close" />
         </div>
       </section>
     </section>
@@ -57,10 +58,10 @@
 import { mapState, mapActions } from 'vuex'
 import { addResizeListener, removeResizeListener } from 'element-ui/src/utils/resize-event'
 import { on, off } from '../../utils/dom'
-import dialog from '../../mixins/components/dialog.js'
+import visible from '../../mixins/components/visible.js'
 export default {
   name: 'Dialog',
-  mixins: [dialog],
+  mixins: [visible],
   data() {
     return {
       id: '',
@@ -83,10 +84,19 @@ export default {
     }
   },
   props: {
+    /**
+     * @description 显示头部
+     */
+    header: {
+      type: Boolean,
+      default: true
+    },
     /** Dialog 的标题，也可通过具名 title传入 */
     title: String,
     /** 图标 */
     icon: String,
+    /**图标颜色 */
+    iconColor: String,
     /** Dialog 的宽度 */
     width: {
       type: [Number, String],
@@ -122,7 +132,10 @@ export default {
     /** 显示加载动画 */
     loading: Boolean,
     /** 可拖拽的 */
-    draggable: Boolean,
+    draggable: {
+      type: Boolean,
+      default: null
+    },
     /** 是否可拖出页面 */
     dragOutPage: Boolean,
     /** 拖拽出页面后保留的最小宽度 */
@@ -131,28 +144,33 @@ export default {
       default: 100
     },
     /** 是否显示底部关闭按钮 */
-    footerCloseButton: Boolean
+    footerCloseButton: Boolean,
+    /**关闭时销毁 Dialog 中的元素 */
+    destroyOnClose: Boolean
   },
   computed: {
-    ...mapState('app/system', { sysCloseOnClickModal: s => s.config.component.dialog.closeOnClickModal }),
+    ...mapState('app/config', { config: s => s.component.dialog }),
     ...mapState('app/loading', { loadingText: 'text', loadingBackground: 'background', loadingSpinner: 'spinner' }),
     elScrollbarViewEl() {
       return this.$refs.dialog.$el.querySelector('.el-scrollbar__view')
     },
     class_() {
-      return ['nm-dialog', this.draggable ? 'draggable' : '']
+      return ['nm-dialog', this.draggable_ ? 'draggable' : '', this.header ? '' : 'no-header']
     },
     width_() {
       return typeof this.width === 'number' ? (this.width > 0 ? this.width + 'px' : '50%') : this.width
     },
-    modal_() {
-      return !this.draggable && this.modal
-    },
     closeOnClickModal_() {
       if (this.closeOnClickModal === null) {
-        return this.sysCloseOnClickModal
+        return this.config.closeOnClickModal
       }
       return this.closeOnClickModal
+    },
+    draggable_() {
+      if (this.draggable === null) {
+        return this.config.draggable
+      }
+      return this.draggable
     },
     dialogEl() {
       return this.$refs.dialog.$el.querySelector('.el-dialog')
@@ -206,6 +224,19 @@ export default {
       this.dialogEl.style.height = height
       this.dialogEl.style.width = this.width_
 
+      if (!this.hasInit) {
+        // 如果是可拖拽的，需要计算绝对定位
+        if (this.draggable_) {
+          this.dialogEl.style.left = (document.body.offsetWidth - this.dialogEl.offsetWidth) / 2 + 'px'
+          this.dialogEl.style.top = this.top
+        }
+        // 设置内边距
+        if (this.padding) {
+          this.dialogEl.querySelector(this.noScrollbar ? '.nm-dialog-main' : '.el-scrollbar__view').style.padding = this.padding + 'px'
+        }
+        this.hasInit = true
+      }
+
       this.updateScrollbar()
     },
     // 获取对话框的高度信息
@@ -248,7 +279,7 @@ export default {
      * @description 处理拖拽点击
      */
     handleDragDown(e) {
-      if (this.draggable && !this.hasFullscreen) {
+      if (this.draggable_ && !this.hasFullscreen) {
         this.isDragDown = true
         this.dragDownState = e
 
@@ -298,25 +329,13 @@ export default {
           addResizeListener(this.elScrollbarViewEl, this.resize)
         }
 
-        if (!this.draggable) return
+        if (!this.draggable_) return
         on(this.titleEl, 'mousedown', this.handleDragDown)
       })
 
       this.$emit('open')
     },
     onOpened() {
-      if (!this.hasInit) {
-        // 如果是可拖拽的，需要计算绝对定位
-        if (this.draggable) {
-          this.dialogEl.style.left = (document.body.offsetWidth - this.dialogEl.offsetWidth) / 2 + 'px'
-          this.dialogEl.style.top = this.top
-        }
-        // 设置内边距
-        if (this.padding) {
-          this.dialogEl.querySelector(this.noScrollbar ? '.nm-dialog-main' : '.el-scrollbar__view').style.padding = this.padding + 'px'
-        }
-        this.hasInit = true
-      }
       this.$emit('opened')
     },
     onClose() {

@@ -4,8 +4,8 @@
 @import './mixins';
 //动画
 @import './animation/index';
-//格式化
-@import './helper';
+//帮助类
+@import './helper/index';
 //覆盖element样式
 @import './element';
 
@@ -25,6 +25,8 @@
 @import './components/color-picker/index';
 //容器
 @import './components/container/index';
+//容器
+@import './components/date-range-picker/index';
 //详情页
 @import './components/details/index';
 //详情页对话框
@@ -43,6 +45,8 @@
 @import './components/form/index';
 //对话框表单
 @import './components/form-dialog/index';
+//对话框表单
+@import './components/form-page/index';
 //图标
 @import './components/icon/index';
 //图标选择器
@@ -71,6 +75,8 @@
 @import './components/tabs/index';
 //树
 @import './components/tree/index';
+//树形选择器
+@import './components/tree-select/index';
 //文本
 @import './components/txt/index';
 //工具栏
@@ -87,11 +93,3 @@
 /*********************主题 Begin*****************************/
 @import './theme';
 /*********************主题 End*******************************/
-
-/*********************皮肤 Begin*****************************/
-// //pretty
-// @import '../skins/pretty/styles/index';
-// //classics
-// @import '../skins/classics/styles/index';
-
-/*********************皮肤 End*******************************/

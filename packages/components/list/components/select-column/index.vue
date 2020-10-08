@@ -10,7 +10,7 @@
       </el-dropdown-item>
       <el-checkbox-group v-model="selection" @change="change">
         <el-dropdown-item v-for="col in columns" :key="col.name">
-          <el-checkbox :label="col.name" :checked="col.show">{{ col.label }}</el-checkbox>
+          <el-checkbox v-if="col.label !== ''" :label="col.name" :checked="col.show">{{ col.label }}</el-checkbox>
         </el-dropdown-item>
       </el-checkbox-group>
     </el-dropdown-menu>
@@ -23,28 +23,27 @@ export default {
       checkAll: false,
       isIndeterminate: true,
       selection: [],
-      visible: false,
-      columns_: this.columns
+      visible: false
     }
   },
   props: ['columns'],
   methods: {
     change() {
       let checkedCount = this.selection.length
-      this.checkAll = checkedCount === this.columns_.length
-      this.isIndeterminate = checkedCount > 0 && checkedCount < this.columns_.length
+      this.checkAll = checkedCount === this.columns.length
+      this.isIndeterminate = checkedCount > 0 && checkedCount < this.columns.length
       this.handleEvent()
     },
     handleCheckAllChange(val) {
-      this.selection = val ? this.columns_.map(item => item.name) : []
+      this.selection = val ? this.columns.map(item => item.name) : []
       this.isIndeterminate = false
       this.handleEvent()
     },
     handleEvent() {
-      this.columns_.map(col => {
+      this.columns.forEach(col => {
         col.show = !this.selection.every(name => name !== col.name)
       })
-      this.$emit('change', this.columns_)
+      this.$emit('change')
     },
     onVisible(visible) {
       this.visible = visible

@@ -1,4 +1,5 @@
 import '@babel/polyfill'
+import './utils/const'
 import Vue from 'vue'
 import lodash from 'lodash'
 import ElementUI from 'element-ui'
@@ -11,20 +12,19 @@ import Layout from './layout'
 import Components, { loginComponents } from './components'
 import Mixins from './mixins/'
 import Directive from './directive'
+import regex from './utils/regex'
 import dayjs from 'dayjs'
-import echarts from 'echarts'
-import VCharts from 'v-charts'
 import VueClipboard from 'vue-clipboard2'
 // 皮肤
 import SkinPretty from './skins/pretty/index'
 // 皮肤集合
 let skins = [SkinPretty]
-//
+
 Vue.config.productionTip = false
 
 // 附加自定义样式
-const appendCustomCss = system => {
-  const customCss = system.config.component.customCss
+const appendCustomCss = config => {
+  const customCss = config.component.customCss
   if (customCss) {
     var style = document.createElement('style')
     style.type = 'text/css'
@@ -62,16 +62,12 @@ export default {
   /**
    * @description 加载皮肤组件
    */
-  use: async ({ system }) => {
+  use: async ({ config, modules, actions }) => {
     // 设置标题
-    document.title = system.config.base.title
+    document.title = config.system.title
 
     // 将lodash添加到Vue的实例属性
     Vue.prototype.$_ = lodash
-
-    // 全局引用ECharts，如果需要按需引用，请访问http://echarts.baidu.com/tutorial.html#%E5%9C%A8%20webpack%20%E4%B8%AD%E4%BD%BF%E7%94%A8%20ECharts
-    // eslint-disable-next-line no-undef
-    Vue.prototype.$echarts = echarts
 
     // 日期格式化插件
     Vue.prototype.$dayjs = dayjs
@@ -81,9 +77,6 @@ export default {
 
     // 加载饿了么框架
     Vue.use(ElementUI)
-
-    // 加载v-charts组件
-    Vue.use(VCharts)
 
     // 复制到粘贴板组件
     Vue.use(VueClipboard)
@@ -99,19 +92,39 @@ export default {
 
     // 全局组件
     let globalComponents = []
+    // 自定义工具栏组件
+    let customToolbars = []
     // 回调方法
     let callbacks = []
+    //页面集合
+    let pages = []
 
     // 加载模块信息
-    system.modules.forEach(m => {
+    modules.forEach(m => {
       // 注入路由信息
       if (m.routes) {
-        m.routes.forEach(r => routes.push(r))
+        m.routes.forEach(r => {
+          routes.push(r)
+          pages.push({
+            moduleCode: m.module.code,
+            name: r.meta.title || '',
+            icon: r.meta.icon || '',
+            code: r.name.toLowerCase(),
+            frameIn: typeof r.meta.frameIn === 'undefined' ? true : r.meta.frameIn,
+            cache: typeof r.meta.cache === 'undefined' ? true : r.meta.cache,
+            noPermission: typeof r.meta.noPermission === 'undefined' ? false : r.meta.noPermission,
+            path: r.path,
+            permissions: r.meta.permissions,
+            buttons: r.meta.buttons
+          })
+        })
       }
+
       // 注入状态信息
       if (m.store) {
         storeOptions.modules.module.modules[m.module.code] = m.store
       }
+
       // 注入回调方法
       if (m.callback) {
         callbacks.push(m.callback)
@@ -126,16 +139,30 @@ export default {
           if (c.name.startsWith('nm-login-')) {
             loginComponents.push(c.name.replace('nm-login-', ''))
           }
+          // 判断是否是登录组件
+          if (c.name.startsWith('nm-toolbar-')) {
+            customToolbars.push(c.name.replace('nm-toolbar-', ''))
+          }
         })
       }
     })
-    system.config.login.typeOptions = loginComponents
+
+    // 保存登录页组件
+    config.component.login.pageTypeOptions = loginComponents
+
+    // 系统属性
+    let system = {
+      modules: modules.map(m => m.module),
+      customToolbars: customToolbars,
+      globalComponents: globalComponents.map(m => m.name),
+      actions
+    }
 
     // 使用状态
     UseStore()
 
     // 使用路由
-    UseRouter(store, system)
+    UseRouter(store, config)
 
     // 注册皮肤
     skins.map(s => {
@@ -143,12 +170,10 @@ export default {
     })
 
     // 加载页面数据
-    await store.dispatch('app/system/init', { system, router }, { root: true })
+    await store.dispatch('app/config/init', { config, system, pages }, { root: true })
 
     // 加载本地令牌
     store.commit('app/token/load', null, { root: true })
-
-    Vue.config.productionTip = false
 
     // 注册全局组件
     if (globalComponents) {
@@ -166,14 +191,13 @@ export default {
 
     // 处理回调
     if (callbacks) {
-      let params = { vm, store, router, Vue }
-      callbacks.map(callback => {
-        callback(params)
+      callbacks.forEach(cb => {
+        cb({ vm, store, router, Vue })
       })
     }
 
     // 附加自定义样式
-    appendCustomCss(system)
+    appendCustomCss(config)
 
     return { router, store, vm }
   }
@@ -182,4 +206,4 @@ export default {
 const mixins = Mixins.components
 
 // 导出混入组件、状态实例、路由实例
-export { mixins, store, router }
+export { mixins, store, router, regex }

@@ -1,14 +1,35 @@
 <template>
   <section :class="class_" v-loading="showLoading" :element-loading-text="loadingText || loadingText_" :element-loading-background="loadingBackground" :element-loading-spinner="loadingSpinner">
     <!--header-->
-    <query-header v-if="!noHeader" v-bind="header">
+    <query-header
+      v-if="!noHeader"
+      :title="title"
+      :icon="icon"
+      :no-fullscreen="noFullscreen"
+      :fullscreen="fullscreen"
+      :no-refresh="noRefresh"
+      :export-enabled="exportOptions_.enabled && exportOptions_.btnLocation !== 'querybar'"
+      :exportBtnCode="exportOptions_.btnCode"
+    >
       <template v-slot:toolbar>
         <slot name="header-toolbar" :total="total" :selection="selection" />
       </template>
     </query-header>
 
     <!--查询栏-->
-    <querybar ref="querybar" v-if="!noQuerybar" v-bind="querybar">
+    <querybar
+      ref="querybar"
+      v-if="!noQuerybar"
+      :model="model"
+      :rules="rules"
+      :input-width="inputWidth"
+      :advanced="advanced"
+      :no-search="noSearch"
+      :no-reset="noReset"
+      :export-enabled="exportOptions_.enabled && exportOptions_.btnLocation === 'querybar'"
+      :export-btn-code="exportOptions_.btnCode"
+      @reset="onQueryBarReset"
+    >
       <template v-slot>
         <slot name="querybar" />
       </template>
@@ -21,7 +42,20 @@
     </querybar>
 
     <section class="nm-list-body">
-      <query-table ref="table" :rows="rows" :cols="cols" :span-method="spanMethod" :selection.sync="selection">
+      <query-table
+        ref="table"
+        :rows="rows"
+        :cols="cols"
+        :span-method="spanMethod"
+        :selection="selection"
+        :row-key="rowKey"
+        :tree-props="treeProps"
+        :default-expand-all="defaultExpandAll"
+        :no-clear-selection="noClearSelection"
+        :show-summary="showSummary"
+        :sum-text="sumText"
+        :summary-method="summaryMethod"
+      >
         <!-- 多选 -->
         <el-table-column v-if="multiple" fixed="left" align="center" type="selection" width="55" />
 
@@ -38,10 +72,10 @@
         </el-table-column>
 
         <!-- 自动生成列 -->
-        <template v-for="col in columns">
+        <template v-for="(col, i) in columns">
           <el-table-column
             v-if="col.show"
-            :key="col.name"
+            :key="i"
             :prop="col.name"
             :width="col.width"
             :sortable="col.sortable"
@@ -60,7 +94,7 @@
             </template>
 
             <template slot-scope="{ row }">
-              <slot :name="'col-' + col.name" :row="row" :rows="rows">{{ col.format ? $dayjs(row[col.name]).format(col.format) : row[col.name] }}</slot>
+              <slot :name="'col-' + col.name" :row="row" :rows="rows">{{ col.format && row[col.name] ? $dayjs(row[col.name]).format(col.format) : row[col.name] }}</slot>
             </template>
           </el-table-column>
         </template>
@@ -80,7 +114,16 @@
     </section>
 
     <!--footer-->
-    <query-footer v-if="!noFooter" v-model="page" :total="total" :columns.sync="columns" :no-select-column="noSelectColumn" :reverse="footerReverse">
+    <query-footer
+      v-if="!noFooter"
+      v-model="page"
+      :page-sizes="pageSizes"
+      :total="total"
+      :columns.sync="columns"
+      :no-select-column="noSelectColumn"
+      :no-search-button-icon="noSearchButtonIcon"
+      :reverse="footerReverse"
+    >
       <slot name="footer" :total="total" :selection="selection" :data="data" />
     </query-footer>
     <slot />
@@ -91,7 +134,6 @@
 </template>
 <script>
 import { mapState } from 'vuex'
-import _ from 'lodash'
 import def from './default.js'
 import QueryHeader from './components/header'
 import Querybar from './components/querybar'
@@ -109,7 +151,7 @@ export default {
       // 分页数据
       page: {
         index: 1,
-        size: 15,
+        size: this.pageSizes[0],
         sort: []
       },
       // 数据列表
@@ -119,7 +161,8 @@ export default {
       // 总数量
       total: 0,
       selection: [],
-      showExport: false
+      showExport: false,
+      columns: []
     }
   },
   props: {
@@ -174,6 +217,8 @@ export default {
     noSearch: Boolean,
     /** 不显示查询按钮图标 */
     noSearchButtonIcon: Boolean,
+    /**不显示重置按钮 */
+    noReset: Boolean,
     /** 底部反转 */
     footerReverse: Boolean,
     /** 合并行列的方法 */
@@ -188,44 +233,46 @@ export default {
       default: true
     },
     /**导出配置 */
-    exportOptions: Object
+    exportOptions: Object,
+    /** 页数选择项 */
+    pageSizes: {
+      type: Array,
+      default() {
+        return [10, 15, 50, 100]
+      }
+    },
+    /**渲染嵌套数据的配置选项 */
+    treeProps: Object,
+    /*行数据的 Key，用来优化 Table 的渲染；
+    在使用 reserve-selection 功能与显示树形数据时，该属性是必填的。
+    类型为 String 时，支持多层访问：user.info.id，但不支持 user.info[0].id，此种情况请使用 Function。*/
+    rowKey: [Function, String],
+    /*是否懒加载子节点数据*/
+    lazy: Boolean,
+    /**加载子节点数据的函数，lazy 为 true 时生效，函数第二个参数包含了节点的层级信息 */
+    load: Function,
+    /**是否默认展开所有行，当 Table 包含展开行存在或者为树形表格时有效 */
+    defaultExpandAll: Boolean,
+    /**当刷新时不清空已选择数据 */
+    noClearSelection: Boolean,
+    /**是否显示合计行 */
+    showSummary: Boolean,
+    /**合计行文本 */
+    sumText: String,
+    /**合计行自定义逻辑方法 */
+    summaryMethod: Function
   },
   computed: {
     ...mapState('app/loading', { loadingText_: 'text', loadingBackground: 'background', loadingSpinner: 'spinner' }),
-    ...mapState('app/system', { serialNumberName: s => s.config.component.list.serialNumberName }),
-    header() {
-      const { title, icon, noFullscreen, fullscreen, noRefresh, exportOptions_ } = this
-      return { title, icon, noFullscreen, fullscreen, noRefresh, exportEnabled: exportOptions_.enabled && exportOptions_.btnLocation !== 'querybar', exportBtnCode: exportOptions_.btnCode }
-    },
+    ...mapState('app/config', { serialNumberName: s => s.component.list.serialNumberName }),
     class_() {
       return ['nm-list', this.fontSize ? `nm-list-${this.fontSize}` : '', this.fullscreen ? 'fullscreen' : '']
-    },
-    querybar() {
-      const { model, rules, inputWidth, advanced, noSearch, noSearchButtonIcon, exportOptions_ } = this
-      return {
-        model,
-        rules,
-        inputWidth,
-        advanced,
-        noSearch,
-        noSearchButtonIcon,
-        exportEnabled: exportOptions_.enabled && exportOptions_.btnLocation === 'querybar',
-        exportBtnCode: exportOptions_.btnCode
-      }
     },
     showLoading() {
       return this.loading || this.loading_
     },
-    columns() {
-      if (this.cols) {
-        return this.cols.map(col => {
-          return _.assignIn({}, def.columnInfo, col)
-        })
-      }
-      return []
-    },
     exportOptions_() {
-      return _.assignIn({ title: this.title }, def.exportOptions, this.exportOptions)
+      return this.$_.assignIn({ title: this.title }, def.exportOptions, this.exportOptions)
     },
     exportAdvancedEnabled() {
       return this.exportOptions_.enabled && this.exportOptions_.advanced
@@ -234,6 +281,15 @@ export default {
   methods: {
     /** 查询方法 */
     query() {
+      if (this.$refs.querybar) {
+        this.$refs.querybar.validate(() => {
+          this.doQuery()
+        })
+      } else {
+        this.doQuery()
+      }
+    },
+    doQuery() {
       if (this.loading_) {
         return
       }
@@ -256,6 +312,15 @@ export default {
           this.$refs.table.doLayout()
           this.loading_ = false
 
+          if (this.noClearSelection) {
+            this.$nextTick(() => {
+              this.rows.forEach(m => {
+                if (!this.selection.every(n => n.id !== m.id)) {
+                  this.$refs.table.toggleRowSelection(m, true)
+                }
+              })
+            })
+          }
           // 查询事件
           this.$emit('query', data)
         })
@@ -291,18 +356,13 @@ export default {
         })
     },
     /** 刷新 */
-    refresh() {
-      this.page.index = 1
+    refresh(goFirst) {
+      if (goFirst) this.page.index = 1
       this.query()
     },
     /** 查询表单重置 */
-    reset(from) {
-      if (!from) {
-        this.$refs.querybar.reset()
-      } else {
-        this.$refs.table.clearSort()
-        this.page.index = 1
-      }
+    reset() {
+      this.$refs.querybar.reset()
     },
     /** 获取序号 */
     getNo(index) {
@@ -315,6 +375,7 @@ export default {
     /** 全屏切换 */
     triggerFullscreen() {
       this.fullscreen ? this.closeFullscreen() : this.openFullscreen()
+      this.doLayout()
     },
     /** 开启全屏 */
     openFullscreen() {
@@ -326,7 +387,7 @@ export default {
       this.fullscreen = false
       this.$emit('fullscreen-change', this.fullscreen)
     },
-    /**切换导出对话框显示状态 */
+    /** 切换导出对话框显示状态 */
     triggerExport() {
       let exp = this.exportOptions_
       //未启用高级，直接执行导出操作
@@ -349,7 +410,7 @@ export default {
 
       this.showExport ? this.closeExport() : this.openExport()
     },
-    /**打开导出对话框 */
+    /** 打开导出对话框 */
     openExport() {
       this.showExport = true
       this.$emit('export-change', this.showExport)
@@ -358,7 +419,7 @@ export default {
       this.showExport = false
       this.$emit('export-change', this.showExport)
     },
-    /**列表的列转导出的列 */
+    /** 列表的列转导出的列 */
     listCol2ExportCol(m) {
       let col = {
         name: m.name,
@@ -376,6 +437,21 @@ export default {
         if (w) col.width = w / 10 + 4 //默认取列表页中设置的宽度，该宽度与导出的Excel的列宽度比例大概10:1，所以这里进行一下转换, 转换后在+4，保可以保证有内边距，不会挤在一起
       }
       return col
+    },
+    /** 查询栏重置事件 */
+    onQueryBarReset() {
+      this.$refs.table.clearSort()
+      this.$emit('reset')
+    },
+    /** 删除行 */
+    removeRow(row) {
+      for (let i = 0; i < this.rows.length; i++) {
+        if (this.rows[i] === row) {
+          this.rows.splice(i, 1)
+          this.total--
+          break
+        }
+      }
     }
   },
   mounted() {
@@ -384,6 +460,13 @@ export default {
         this.query()
       }
     })
+  },
+  created() {
+    if (this.cols) {
+      this.columns = this.cols.map(col => {
+        return this.$_.assignIn({}, def.columnInfo, col)
+      })
+    }
   },
   activated() {
     this.doLayout()

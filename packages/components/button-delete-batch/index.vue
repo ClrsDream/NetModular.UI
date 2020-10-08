@@ -96,7 +96,6 @@ export default {
               })
               .catch(() => {
                 this._closeLoading()
-                this._error('删除失败~')
                 this.$emit('error')
               }, this.msg)
               .catch(() => {})

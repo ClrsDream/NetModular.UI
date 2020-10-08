@@ -1,5 +1,5 @@
 <template>
-  <nm-dialog v-bind="dialog" :visible.sync="visible_" @open="onOpen">
+  <nm-dialog class="nm-drag-sort-dialog" :title="title" :icon="icon" :width="width" :height="height" footer :loading="loading" :visible.sync="visible_" @open="onOpen">
     <nm-drag-sort v-model="model.options" />
     <template v-slot:footer>
       <nm-button type="success" text="保存" @click="onUpdate" />
@@ -7,10 +7,10 @@
   </nm-dialog>
 </template>
 <script>
-import dialogMixins from '../../mixins/components/dialog'
+import visibleMixins from '../../mixins/components/visible'
 export default {
   name: 'DragSortDialog',
-  mixins: [dialogMixins],
+  mixins: [visibleMixins],
   data() {
     return {
       model: {
@@ -47,19 +47,6 @@ export default {
     /** 保存成功后关闭 */
     closeOnSuccess: Boolean
   },
-  computed: {
-    dialog() {
-      return {
-        class: 'nm-drag-sort-dialog',
-        title: this.title,
-        icon: this.icon,
-        width: this.width,
-        height: this.height,
-        footer: true,
-        loading: this.loading
-      }
-    }
-  },
   methods: {
     onOpen() {
       this.queryAction().then(data => {
@@ -72,16 +59,13 @@ export default {
         .then(() => {
           this.loading = false
           this.$emit('success', this.model.options)
-          this._success('保存成功', () => {
-            if (this.closeOnSuccess) {
-              this.visible_ = false
-            }
-          })
+          if (this.closeOnSuccess) {
+            this.visible_ = false
+          }
         })
         .catch(() => {
           this.loading = false
           this.$emit('error')
-          this._error('保存失败')
         })
     }
   }

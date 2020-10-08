@@ -2,7 +2,7 @@ import axios from 'axios'
 import qs from 'qs'
 import dayjs from 'dayjs'
 import token from './token'
-import { Message } from 'element-ui'
+import { Message, MessageBox } from 'element-ui'
 import { store } from '../store'
 import { router } from '../router'
 
@@ -73,6 +73,21 @@ Http.prototype.download = (url, params, config) => {
   return axios.get(url, config_)
 }
 
+Http.prototype.preview = (url, params, config) => {
+  const config_ = Object.assign({ responseType: 'blob', headers: { preview: true } }, config, {
+    // 参数
+    params,
+    // 修改参数序列化方法
+    paramsSerializer: p => {
+      // 使用逗号分隔参数
+      return qs.stringify(p, {
+        allowDots: true
+      })
+    }
+  })
+  return axios.get(url, config_)
+}
+
 Http.prototype.export = (url, params, config) => {
   return axios.post(url, params, Object.assign({ responseType: 'blob' }, config))
 }
@@ -106,6 +121,8 @@ if (!window.$http) window.$http = new Http()
 
 // 消息提醒显示时长(ms)
 const messageDuration = 1500
+//是否显示了账户在其他地方登录的提示框
+let showLoginOnOtherPlaces = false
 
 //处理文件下载请求
 const handleDownload = response => {
@@ -120,7 +137,6 @@ const handleDownload = response => {
         Message.error({
           message: data.msg,
           showClose: true,
-          center: true,
           duration: messageDuration
         })
         return
@@ -137,15 +153,9 @@ const handleDownload = response => {
 
   let fileName = ''
   // 如果响应头包含'content-disposition'属性，则从该属性中获取文件名称
-  if (response.headers['content-disposition']) {
-    fileName = decodeURI(
-      response.headers['content-disposition']
-        .split(';')
-        .find(m => m.trim().startsWith('filename='))
-        .split('=')[1]
-    )
-      .replace('"', '')
-      .replace('"', '')
+  let cd = response.headers['content-disposition']
+  if (cd) {
+    fileName = decodeURI(cd.split("''")[1])
   }
 
   //如果文件名不存在，则使用时间戳
@@ -160,6 +170,16 @@ const handleDownload = response => {
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
+}
+
+//刷新令牌
+const refreshToken = () => {
+  let t = token.get()
+  if (t && t.refreshToken) {
+    return store.state.app.system.actions.refreshToken(t.refreshToken)
+  }
+
+  Promise.reject('refresh token error')
 }
 
 // 初始化
@@ -187,38 +207,46 @@ export default config => {
       const { config } = response
       // 文件下载/预览
       if (config.responseType && config.responseType === 'blob') {
-        handleDownload(response)
-        return
+        return handleDownload(response)
       }
 
       if (response.data.code === 1) {
         return response.data.data
-      } else {
+      } else if (response.data.code === 0 && !config.noErrorMsg) {
         Message.error({
           message: response.data.msg,
           showClose: true,
-          center: true,
           duration: messageDuration
         })
         return Promise.reject(response.data.msg)
+      } else {
+        return response.data
       }
     },
     error => {
       let currentRoute = router.currentRoute
       let redirect = currentRoute.name !== 'login' ? currentRoute.fullPath : '/' // 跳转页面
-
       if (error && error.response) {
         switch (error.response.status) {
           case 401:
-            // 删除token
-            token.remove()
-            router.push({
-              name: 'login',
-              query: {
-                redirect
-              }
-            })
-            break
+            return refreshToken()
+              .then(data => {
+                //重新初始化令牌
+                store.commit('app/token/init', data)
+                //重新发一起一次上次的的请求
+                error.config.headers.Authorization = 'Bearer ' + data.accessToken
+                return axios.request(error.config)
+              })
+              .catch(() => {
+                // 如果刷新失败，需要删除token并跳转到登录页面
+                token.remove()
+                router.push({
+                  name: 'login',
+                  query: {
+                    redirect
+                  }
+                })
+              })
           case 403:
             store.dispatch(
               'app/page/close',
@@ -231,6 +259,28 @@ export default config => {
               },
               { root: true }
             )
+            break
+          case 622:
+            //单账户登录功能
+            if (!showLoginOnOtherPlaces) {
+              showLoginOnOtherPlaces = true
+              MessageBox.confirm('账户已在别处登录, 请重新登录~', '提示', {
+                confirmButtonText: '确定',
+                type: 'warning',
+                showCancelButton: false,
+                callback() {
+                  // 删除token
+                  token.remove()
+                  router.push({
+                    name: 'login',
+                    query: {
+                      redirect
+                    }
+                  })
+                  showLoginOnOtherPlaces = false
+                }
+              })
+            }
             break
           default:
             console.error(error.response.data.msg)
